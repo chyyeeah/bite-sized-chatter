@@ -1,6 +1,24 @@
 const startBroadcast = document.getElementById('start-broadcast');
 const stopBroadcast = document.getElementById('stop-broadcast')
 let socket;
+
+const { RTCPeerConnection, RTCSessionDescription } = window;
+const peerConnection = new RTCPeerConnection();
+
+
+navigator.mediaDevices.getUserMedia({
+  video: true,
+  audio: true
+})
+  .then((stream) => {
+    const localVideo = document.getElementById('local-video');
+    localVideo.srcObject = stream;
+    stream.getTracks().forEach((track) => {
+      console.log('stream', stream);
+      peerConnection.addTrack(track, stream);
+    });
+  });
+
 const beginBroadcast = async () => {
   const requestedRoom = document.getElementById('requested-room').value;
   console.log(requestedRoom);
@@ -14,20 +32,19 @@ const beginBroadcast = async () => {
     const status = response.status;
     if (status === 201) {
       socket = io();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
+
+      socket.emit('broadcast', { requestedRoom });
+
+      socket.on('request', async ({ viewer }) => {
+        const offer = await peerConnection.createOffer({ offerToReceiveVideo: true });
+        await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
+        socket.emit('offer', { viewer, offer });
       });
-      const localVideo = document.getElementById('local-video');
-      localVideo.srcObject = stream;
 
-
-      const { RTCPeerConnection, RTCSessionDescription } = window;
-      const peerConnection = new RTCPeerConnection();
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
-
-      socket.emit('broadcast', { room: requestedRoom, offer });
+      socket.on('answer', async ({ answer }) => {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('answer received');
+      });
     } else if (status === 403) {
       console.warn('room already exists!');
     } else {
