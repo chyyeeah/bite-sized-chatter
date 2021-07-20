@@ -24,23 +24,30 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('broadcast', ({ room, offer }) => {
-    rooms.set(room, offer);
+  socket.on('broadcast', ({ requestedRoom }) => {
+    rooms.set(requestedRoom, {
+      host: socket.id,
+      viewers: []
+    });
+    console.log(rooms);
+    console.log(socket.id);
   });
 
-  socket.on('join', ({ room }) => {
-    console.log('inside join', room);
-    socket.join(room);
+  socket.on('request', ({ room }) => {
+    const { host } = rooms.get(room);
+    socket.to(host).emit('request', { viewer: socket.id });
   });
 
-  socket.on('watch', ({ room }) => {
-    console.log('inside watch');
-    socket.to(room).emit('view', rooms.get(room));
-  })
+  socket.on('offer', ({ viewer, offer }) => {
+    socket.to(viewer).emit('offer', { host: socket.id, offer });
+  });
+
+  socket.on('answer', ({ host, answer }) => {
+    socket.to(host).emit('answer', { answer });
+  });
 });
 
 app.post('/createroom', (req, res) => {
-  console.log(req.body);
   const { requestedRoom } = req.body;
   if (rooms.has(requestedRoom)) {
     res.sendStatus(403);
