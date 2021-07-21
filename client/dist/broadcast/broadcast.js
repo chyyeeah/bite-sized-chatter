@@ -1,57 +1,55 @@
-const startBroadcast = document.getElementById('start-broadcast');
-const stopBroadcast = document.getElementById('stop-broadcast')
-let socket;
+const startBroadcast = document.getElementById('start-broadcast'),
+  stopBroadcast = document.getElementById('stop-broadcast'),
+  config = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] },
+  { RTCPeerConnection, RTCSessionDescription } = window,
+  socket = io(),
+  peerConnection = new RTCPeerConnection();
 
-const { RTCPeerConnection, RTCSessionDescription } = window;
-const peerConnection = new RTCPeerConnection();
+socket.on('request', async ({ viewer }) => {
+  callUser(viewer);
+});
 
+socket.on('answer', async ({ viewer, answer }) => {
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  console.log('on answer', peerConnection.connectionState, peerConnection);
+  callUser(viewer);
+});
 
-navigator.mediaDevices.getUserMedia({
-  video: true,
-  audio: true
-})
-  .then((stream) => {
-    const localVideo = document.getElementById('local-video');
-    localVideo.srcObject = stream;
-    stream.getTracks().forEach((track) => {
-      console.log('stream', stream);
-      peerConnection.addTrack(track, stream);
-    });
+const callUser = async (viewer) => {
+  console.log('on request', peerConnection.connectionState);
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
+  socket.emit('offer', { viewer, offer });
+  console.log('emitted offer', peerConnection.connectionState);
+};
+
+const setUpLocalStream = async () => {
+  const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  const localVideo = document.getElementById('local-video');
+  localVideo.srcObject = localStream;
+
+  localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+};
+
+const createRoom = (requestedRoom) => {
+  return fetch('http://localhost:3000/createroom', {
+    method: 'POST',
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestedRoom })
   });
+};
 
-const beginBroadcast = async () => {
+const beginBroadcast = async (room) => {
   const requestedRoom = document.getElementById('requested-room').value;
-  console.log(requestedRoom);
-
   try {
-    const response = await fetch('http://localhost:3000/createroom', {
-      method: 'POST',
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestedRoom })
-    });
-    const status = response.status;
-    if (status === 201) {
-      socket = io();
-
+    const response = await createRoom(requestedRoom);
+    if (response.status === 201) {
       socket.emit('broadcast', { requestedRoom });
-
-      socket.on('request', async ({ viewer }) => {
-        const offer = await peerConnection.createOffer({ offerToReceiveVideo: true });
-        await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
-        socket.emit('offer', { viewer, offer });
-      });
-
-      socket.on('answer', async ({ answer }) => {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        console.log('answer received');
-      });
     } else if (status === 403) {
       console.warn('room already exists!');
-    } else {
-      throw new Error('Error processing request.');
     }
   } catch (e) {
-    console.error(e);
+    console.error('Error creating room', e);
   }
 };
 
@@ -60,3 +58,5 @@ startBroadcast.addEventListener('click', (event) => {
   stopBroadcast.disabled = false;
   beginBroadcast();
 });
+
+setUpLocalStream();
