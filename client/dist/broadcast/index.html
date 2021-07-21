@@ -8,7 +8,9 @@
     <input type="text" id="requested-room" name="requested-room">
     <button id="start-broadcast">Start Broadcasting!</button>
     <button id="stop-broadcast" disabled>Stop Broadcasting!</button>
-    <video autoplay muted id="local-video"></video>
+    <div>
+      <video autoplay muted id="local-video"></video>
+    </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="broadcast.js"></script>
