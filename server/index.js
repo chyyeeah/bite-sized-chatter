@@ -43,8 +43,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('answer', ({ host, answer }) => {
-    socket.to(host).emit('answer', { answer });
+    socket.to(host).emit('answer', { viewer: socket.id, answer });
   });
+
+  // socket.on('webrtc_ice_candidate', ({ peer, label, candidate}) => {
+  //   console.log('peer', peer);
+  //   socket.to(peer).emit({ peer: socket.id, label, candidate });
+  // });
 });
 
 app.post('/createroom', (req, res) => {
