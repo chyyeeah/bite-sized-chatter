@@ -11,16 +11,16 @@ socket.on('request', async ({ viewer }) => {
 
 socket.on('answer', async ({ viewer, answer }) => {
   await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-  console.log('on answer', peerConnection.connectionState, peerConnection);
+  // console.log('on answer', peerConnection.connectionState, peerConnection);
   callUser(viewer);
 });
 
 const callUser = async (viewer) => {
-  console.log('on request', peerConnection.connectionState);
+  // console.log('on request', peerConnection.connectionState);
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
   socket.emit('offer', { viewer, offer });
-  console.log('emitted offer', peerConnection.connectionState);
+  // console.log('emitted offer', peerConnection.connectionState);
 };
 
 const setUpLocalStream = async () => {
