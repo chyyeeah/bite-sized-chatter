@@ -6,6 +6,10 @@ const searchParams = new URLSearchParams(window.location.search),
   socket = io(),
   peerConnection = new RTCPeerConnection();
 
+const title = document.createElement('h1');
+title.innerText = `${room}`;
+document.getElementById('title').appendChild(title);
+
 peerConnection.ontrack = (event) => remoteVideo.srcObject = event.streams[0];
 
 socket.on('offer', async ({ host, offer }) => {
